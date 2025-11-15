@@ -450,6 +450,26 @@ const Workspace = () => {
     }
   };
 
+  const handleStopPolling = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ polling_active: false })
+        .eq("id", projectId);
+
+      if (error) throw error;
+
+      toast.success("Drilling stopped!");
+      fetchProject();
+    } catch (error: any) {
+      console.error('Stop error:', error);
+      toast.error(error.message || "Failed to stop drilling");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm px-4 py-3 flex items-center justify-between">
@@ -491,21 +511,27 @@ const Workspace = () => {
           >
             Restart Drilling
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleStartPolling}
-            disabled={isLoading || project?.polling_active || !project?.external_api_url}
-          >
-            {project?.polling_active ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Drilling...
-              </>
-            ) : (
-              "Start Drilling"
-            )}
-          </Button>
+          {project?.polling_active ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleStopPolling}
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Stop Drilling
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleStartPolling}
+              disabled={isLoading || !project?.external_api_url}
+            >
+              Start Drilling
+            </Button>
+          )}
         </div>
       </header>
 

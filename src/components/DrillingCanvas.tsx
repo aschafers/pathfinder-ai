@@ -54,9 +54,10 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
   return (
     <div className="h-full p-4 flex flex-col">
       <Card className="flex-1 border-border bg-card/30 backdrop-blur-sm overflow-hidden">
-        <div className="h-full relative flex items-center justify-center">
+        <div className="h-full relative flex items-center justify-center bg-black">
           {imageUrl ? (
             <img 
+              key={imageUrl}
               src={imageUrl} 
               alt="Drilling progress visualization" 
               className="w-full h-full object-contain"
