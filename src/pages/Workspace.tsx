@@ -384,7 +384,16 @@ const Workspace = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
+      // Delete all chat messages for this project
+      const { error: deleteError } = await supabase
+        .from("chat_messages")
+        .delete()
+        .eq("project_id", projectId);
+
+      if (deleteError) throw deleteError;
+
+      // Reset project data
+      const { error: updateError } = await supabase
         .from("projects")
         .update({
           current_index: 0,
@@ -396,11 +405,11 @@ const Workspace = () => {
         })
         .eq("id", projectId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       toast.success("Drilling reset! Ready to start from beginning.");
+      setMessages([]);
       fetchProject();
-      fetchMessages();
     } catch (error: any) {
       console.error('Reset error:', error);
       toast.error(error.message || "Failed to reset drilling");
