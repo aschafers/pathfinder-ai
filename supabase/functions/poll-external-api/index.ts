@@ -38,158 +38,16 @@ serve(async (req) => {
       .update({ polling_active: true })
       .eq('id', projectId);
 
-    // Perform polling iterations
-    const results = [];
-    
-    // Initialize drilling path accumulator
-    const accumulatedPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
-    
-    for (let i = 0; i < iterations; i++) {
-      // Check if polling has been stopped by user
-      const { data: currentProject } = await supabase
-        .from('projects')
-        .select('polling_active')
-        .eq('id', projectId)
-        .single();
-      
-      if (!currentProject?.polling_active) {
-        console.log('Polling stopped by user');
-        break;
-      }
+    // Start polling in background (don't await)
+    performPolling(supabase, project, iterations, projectId).catch(err => 
+      console.error('Background polling error:', err)
+    );
 
-      const currentIndex = project.current_index + i;
-      
-      console.log(`Fetching data for index ${currentIndex}`);
-      
-      try {
-        // Call external API with index parameter
-        const apiUrl = `${project.external_api_url}?index=${currentIndex}`;
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-          console.error(`API request failed with status ${response.status}`);
-          continue;
-        }
-
-        const data = await response.json();
-        results.push({
-          index: currentIndex,
-          data: data,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Handle frame image if provided
-        let imageUrl = project.current_image_url;
-        if (data.frame_image_base64) {
-          try {
-            // Convert base64 to binary
-            const base64Data = data.frame_image_base64.replace(/^data:image\/\w+;base64,/, '');
-            const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-            
-            // Upload to Supabase Storage
-            const fileName = `${projectId}/frame_${currentIndex}_${Date.now()}.png`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('project-images')
-              .upload(fileName, binaryData, {
-                contentType: 'image/png',
-                upsert: true
-              });
-
-            if (!uploadError && uploadData) {
-              const { data: urlData } = supabase.storage
-                .from('project-images')
-                .getPublicUrl(fileName);
-              imageUrl = urlData.publicUrl;
-              console.log(`Image uploaded successfully: ${imageUrl}`);
-            } else {
-              console.error('Error uploading image:', uploadError);
-            }
-          } catch (error) {
-            console.error('Error processing base64 image:', error);
-          }
-        }
-
-        // Calculate new point based on action data
-        const lastPoint = accumulatedPath.points.length > 0 
-          ? accumulatedPath.points[accumulatedPath.points.length - 1]
-          : { x: 0, y: 0, z: 0 };
-        
-        // Convert inclination and azimuth to x, y, z coordinates
-        const stepMd = data.action?.step_md || 10;
-        const inclination = (data.action?.inclination || 0) * Math.PI / 180;
-        const azimuth = (data.action?.azimuth || 0) * Math.PI / 180;
-        
-        const newPoint = {
-          x: lastPoint.x + stepMd * Math.sin(inclination) * Math.cos(azimuth),
-          y: lastPoint.y + stepMd * Math.sin(inclination) * Math.sin(azimuth),
-          z: lastPoint.z - stepMd * Math.cos(inclination)
-        };
-        
-        // Accumulate point in memory
-        accumulatedPath.points.push(newPoint);
-        accumulatedPath.status = data.action?.action === 'drill' ? 'drilling' : 'stopped';
-
-        // Update project with accumulated data and create chat message
-        const updateData: any = {
-          current_index: currentIndex + 1,
-          meters_drilled: data.current_md || project.meters_drilled,
-          precision_improvement: project.precision_improvement,
-          image_quality: project.image_quality,
-          drilling_path_data: accumulatedPath,
-          current_image_url: imageUrl,
-        };
-
-        await supabase
-          .from('projects')
-          .update(updateData)
-          .eq('id', projectId);
-
-        // Create a chat message with detailed information (no image, just text)
-        const rationaleText = data.action?.rationale || 'No rationale provided';
-        await supabase
-          .from('chat_messages')
-          .insert({
-            project_id: projectId,
-            role: 'assistant',
-            content: `📊 Itération ${data.iteration || (currentIndex + 1)}: ${data.current_md || 0}m forés\n🪨 Lithologie: ${data.observed_lithology || 'inconnu'}\n⚙️ Action: ${data.action?.action || 'N/A'}\n💬 ${rationaleText}`,
-            metadata: { 
-              source: 'external_api', 
-              index: currentIndex,
-              iteration: data.iteration,
-              lithology: data.observed_lithology,
-              action: data.action
-            },
-          });
-
-        console.log(`Successfully processed index ${currentIndex} - ${data.current_md || 0}m drilled`);
-
-        // Wait for the specified interval before next iteration (except on last iteration)
-        if (i < iterations - 1) {
-          await new Promise(resolve => setTimeout(resolve, project.polling_interval * 1000));
-        }
-      } catch (error) {
-        console.error(`Error fetching index ${currentIndex}:`, error);
-        results.push({
-          index: currentIndex,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    // Mark polling as inactive
-    await supabase
-      .from('projects')
-      .update({ polling_active: false })
-      .eq('id', projectId);
-
-    console.log(`Polling completed for project ${projectId}`);
-
+    // Return immediately
     return new Response(
       JSON.stringify({
         success: true,
-        results: results,
-        message: `Completed ${results.length} polling iterations`,
+        message: `Polling started for ${iterations} iterations`,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -207,3 +65,143 @@ serve(async (req) => {
     );
   }
 });
+
+async function performPolling(supabase: any, project: any, iterations: number, projectId: string) {
+  const results = [];
+  
+  // Initialize drilling path accumulator
+  const accumulatedPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
+  
+  for (let i = 0; i < iterations; i++) {
+    // Check if polling has been stopped by user
+    const { data: currentProject } = await supabase
+      .from('projects')
+      .select('polling_active')
+      .eq('id', projectId)
+      .single();
+    
+    if (!currentProject?.polling_active) {
+      console.log('Polling stopped by user');
+      break;
+    }
+
+    const currentIndex = project.current_index + i;
+    
+    console.log(`Fetching data for index ${currentIndex}`);
+    
+    try {
+      // Call external API with index parameter
+      const apiUrl = `${project.external_api_url}?index=${currentIndex}`;
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        console.error(`API request failed with status ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      results.push({
+        index: currentIndex,
+        data: data,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Handle frame image if provided
+      let imageUrl = project.current_image_url;
+      if (data.frame_image_base64) {
+        try {
+          // Convert base64 to binary
+          const base64Data = data.frame_image_base64.replace(/^data:image\/\w+;base64,/, '');
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          
+          // Upload to Supabase Storage
+          const fileName = `${projectId}/frame_${currentIndex}_${Date.now()}.png`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('project-images')
+            .upload(fileName, binaryData, {
+              contentType: 'image/png',
+              upsert: true
+            });
+
+          if (!uploadError && uploadData) {
+            const { data: urlData } = supabase.storage
+              .from('project-images')
+              .getPublicUrl(fileName);
+            imageUrl = urlData.publicUrl;
+            console.log(`Image uploaded successfully: ${imageUrl}`);
+          } else {
+            console.error('Error uploading image:', uploadError);
+          }
+        } catch (error) {
+          console.error('Error processing base64 image:', error);
+        }
+      }
+
+      // Calculate new point based on action data
+      const lastPoint = accumulatedPath.points.length > 0 
+        ? accumulatedPath.points[accumulatedPath.points.length - 1]
+        : { x: 0, y: 0, depth: 0 };
+
+      let newPoint;
+      if (data.action) {
+        const { step_md, inclination, azimuth } = data.action;
+        
+        // Convert drilling action to coordinates (simplified)
+        const deltaDepth = step_md * Math.cos(inclination * Math.PI / 180);
+        const horizontalDistance = step_md * Math.sin(inclination * Math.PI / 180);
+        const deltaX = horizontalDistance * Math.cos(azimuth * Math.PI / 180);
+        const deltaY = horizontalDistance * Math.sin(azimuth * Math.PI / 180);
+        
+        newPoint = {
+          x: lastPoint.x + deltaX,
+          y: lastPoint.y + deltaY,
+          depth: lastPoint.depth + deltaDepth,
+          iteration: i + 1,
+          lithology: data.observed_lithology || 'Unknown'
+        };
+      } else {
+        // Fallback if no action data
+        newPoint = {
+          x: lastPoint.x,
+          y: lastPoint.y,
+          depth: lastPoint.depth + 10, // Default 10m increment
+          iteration: i + 1,
+          lithology: data.observed_lithology || 'Unknown'
+        };
+      }
+
+      accumulatedPath.points.push(newPoint);
+
+      // Update project with latest data
+      const metersDrilled = data.current_md || (project.meters_drilled + 30);
+      await supabase
+        .from('projects')
+        .update({
+          current_index: currentIndex,
+          current_image_url: imageUrl,
+          meters_drilled: metersDrilled,
+          drilling_path_data: accumulatedPath,
+          precision_improvement: data.precision_improvement || project.precision_improvement,
+          image_quality: data.image_quality || project.image_quality,
+        })
+        .eq('id', projectId);
+
+      console.log(`Successfully processed index ${currentIndex} - ${metersDrilled}m drilled`);
+
+      // Wait 5 seconds between iterations (configurable)
+      await new Promise(resolve => setTimeout(resolve, project.polling_interval * 1000 || 5000));
+
+    } catch (error) {
+      console.error(`Error processing index ${currentIndex}:`, error);
+      continue;
+    }
+  }
+
+  // Mark polling as inactive
+  await supabase
+    .from('projects')
+    .update({ polling_active: false })
+    .eq('id', projectId);
+
+  console.log(`Polling completed for project ${projectId}`);
+}
