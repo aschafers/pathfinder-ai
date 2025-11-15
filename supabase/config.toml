@@ -2,3 +2,6 @@ project_id = "jsyxrparkjbkcobeheqe"
 
 [functions.analyze-seismogram]
 verify_jwt = true
+
+[functions.poll-external-api]
+verify_jwt = true
