@@ -132,24 +132,7 @@ serve(async (req) => {
           .update(updateData)
           .eq('id', projectId);
 
-        // Create a chat message with the new data
-        await supabase
-          .from('chat_messages')
-          .insert({
-            project_id: projectId,
-            role: 'assistant',
-            content: `📊 Itération ${data.iteration || currentIndex}: ${data.current_md || 0}m forés, lithologie: ${data.observed_lithology || 'inconnu'}, action: ${data.action?.action || 'N/A'}`,
-            image_url: imageUrl,
-            metadata: { 
-              source: 'external_api', 
-              index: currentIndex,
-              iteration: data.iteration,
-              lithology: data.observed_lithology,
-              action: data.action
-            },
-          });
-
-        console.log(`Successfully processed index ${currentIndex}`);
+        console.log(`Successfully processed index ${currentIndex} - ${data.current_md || 0}m drilled`);
 
         // Wait for the specified interval before next iteration (except on last iteration)
         if (i < iterations - 1) {
