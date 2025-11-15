@@ -390,6 +390,9 @@ const Workspace = () => {
           current_index: 0,
           drilling_path_data: null,
           meters_drilled: 0,
+          current_image_url: null,
+          precision_improvement: 0,
+          image_quality: 40,
         })
         .eq("id", projectId);
 
@@ -397,6 +400,7 @@ const Workspace = () => {
 
       toast.success("Drilling reset! Ready to start from beginning.");
       fetchProject();
+      fetchMessages();
     } catch (error: any) {
       console.error('Reset error:', error);
       toast.error(error.message || "Failed to reset drilling");
