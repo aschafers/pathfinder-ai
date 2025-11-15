@@ -117,7 +117,7 @@ serve(async (req) => {
         accumulatedPath.points.push(newPoint);
         accumulatedPath.status = data.action?.action === 'drill' ? 'drilling' : 'stopped';
 
-        // Update project with accumulated data
+        // Update project with accumulated data and create chat message
         const updateData: any = {
           current_index: currentIndex + 1,
           meters_drilled: data.current_md || project.meters_drilled,
@@ -131,6 +131,23 @@ serve(async (req) => {
           .from('projects')
           .update(updateData)
           .eq('id', projectId);
+
+        // Create a chat message with detailed information (no image, just text)
+        const rationaleText = data.action?.rationale || 'No rationale provided';
+        await supabase
+          .from('chat_messages')
+          .insert({
+            project_id: projectId,
+            role: 'assistant',
+            content: `📊 Itération ${data.iteration || (currentIndex + 1)}: ${data.current_md || 0}m forés\n🪨 Lithologie: ${data.observed_lithology || 'inconnu'}\n⚙️ Action: ${data.action?.action || 'N/A'}\n💬 ${rationaleText}`,
+            metadata: { 
+              source: 'external_api', 
+              index: currentIndex,
+              iteration: data.iteration,
+              lithology: data.observed_lithology,
+              action: data.action
+            },
+          });
 
         console.log(`Successfully processed index ${currentIndex} - ${data.current_md || 0}m drilled`);
 
