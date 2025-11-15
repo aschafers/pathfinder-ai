@@ -139,6 +139,7 @@ serve(async (req) => {
             project_id: projectId,
             role: 'assistant',
             content: `📊 Itération ${data.iteration || currentIndex}: ${data.current_md || 0}m forés, lithologie: ${data.observed_lithology || 'inconnu'}, action: ${data.action?.action || 'N/A'}`,
+            image_url: imageUrl,
             metadata: { 
               source: 'external_api', 
               index: currentIndex,
