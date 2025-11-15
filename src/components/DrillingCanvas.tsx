@@ -1,13 +1,70 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DrillingCanvasProps {
   projectId: string;
 }
 
+interface DrillingPoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface DrillingPath {
+  points: DrillingPoint[];
+  status?: string;
+  obstacle_detected?: boolean;
+  obstacle_position?: DrillingPoint;
+}
+
 const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [drillingPath, setDrillingPath] = useState<DrillingPath | null>(null);
 
+  // Fetch project data and subscribe to updates
+  useEffect(() => {
+    const fetchProject = async () => {
+      const { data } = await supabase
+        .from('projects')
+        .select('drilling_path_data')
+        .eq('id', projectId)
+        .single();
+      
+      if (data?.drilling_path_data) {
+        setDrillingPath(data.drilling_path_data as unknown as DrillingPath);
+      }
+    };
+
+    fetchProject();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('drilling-path-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects',
+          filter: `id=eq.${projectId}`
+        },
+        (payload) => {
+          console.log('Project updated:', payload);
+          if (payload.new.drilling_path_data) {
+            setDrillingPath(payload.new.drilling_path_data as unknown as DrillingPath);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
+
+  // Draw canvas when drilling path changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -58,32 +115,55 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
       ctx.fillText(layer.label, 20, layer.y + 30);
     });
 
-    // Draw sample drilling path
-    ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
-    ctx.lineWidth = 3;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = "#00FFFF";
+    // Draw drilling path if available
+    if (drillingPath?.points && drillingPath.points.length > 0) {
+      ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "#00FFFF";
 
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 50);
-    
-    // Create a curved path avoiding obstacles
-    ctx.bezierCurveTo(
-      canvas.width / 2 + 50,
-      150,
-      canvas.width / 2 - 30,
-      300,
-      canvas.width / 2 + 20,
-      500
-    );
-    ctx.stroke();
+      ctx.beginPath();
+      
+      // Scale points to canvas size
+      const scaleX = canvas.width / 200; // Assuming max x coordinate around 200
+      const scaleZ = canvas.height / 200; // Assuming max depth around 200
+      
+      drillingPath.points.forEach((point, index) => {
+        const x = canvas.width / 2 + point.x * scaleX;
+        const y = 50 + Math.abs(point.z) * scaleZ;
+        
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      
+      ctx.stroke();
 
-    // Draw drill head
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = "#00FFFF";
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2 + 20, 500, 8, 0, Math.PI * 2);
-    ctx.fill();
+      // Draw drill head at last point
+      const lastPoint = drillingPath.points[drillingPath.points.length - 1];
+      const lastX = canvas.width / 2 + lastPoint.x * scaleX;
+      const lastY = 50 + Math.abs(lastPoint.z) * scaleZ;
+      
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = "#00FFFF";
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw obstacle if detected
+      if (drillingPath.obstacle_detected && drillingPath.obstacle_position) {
+        const obsX = canvas.width / 2 + drillingPath.obstacle_position.x * scaleX;
+        const obsY = 50 + Math.abs(drillingPath.obstacle_position.z) * scaleZ;
+        
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = "rgba(255, 0, 255, 0.6)";
+        ctx.beginPath();
+        ctx.arc(obsX, obsY, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     // Add depth markers
     ctx.shadowBlur = 0;
@@ -93,7 +173,7 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
       const y = i * 100 + 50;
       ctx.fillText(`${i * 10}m`, 10, y);
     }
-  }, [projectId]);
+  }, [drillingPath]);
 
   return (
     <div className="h-full p-4 flex flex-col">
