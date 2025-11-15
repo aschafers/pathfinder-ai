@@ -62,19 +62,36 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         });
 
+        // Get existing drilling path or initialize
+        const existingPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
+        
+        // Calculate new point based on action data
+        const lastPoint = existingPath.points.length > 0 
+          ? existingPath.points[existingPath.points.length - 1]
+          : { x: 0, y: 0, z: 0 };
+        
+        // Convert inclination and azimuth to x, y, z coordinates
+        const stepMd = data.action?.step_md || 10;
+        const inclination = (data.action?.inclination || 0) * Math.PI / 180;
+        const azimuth = (data.action?.azimuth || 0) * Math.PI / 180;
+        
+        const newPoint = {
+          x: lastPoint.x + stepMd * Math.sin(inclination) * Math.cos(azimuth),
+          y: lastPoint.y + stepMd * Math.sin(inclination) * Math.sin(azimuth),
+          z: lastPoint.z - stepMd * Math.cos(inclination)
+        };
+        
+        existingPath.points.push(newPoint);
+        existingPath.status = data.action?.action === 'drill' ? 'drilling' : 'stopped';
+
         // Update project with new data
         const updateData: any = {
           current_index: currentIndex + 1,
-          meters_drilled: data.meters_drilled || project.meters_drilled,
-          precision_improvement: data.precision_improvement || project.precision_improvement,
-          image_quality: data.image_quality || project.image_quality,
-          current_image_url: data.image_url || project.current_image_url,
+          meters_drilled: data.current_md || project.meters_drilled,
+          precision_improvement: project.precision_improvement,
+          image_quality: project.image_quality,
+          drilling_path_data: existingPath,
         };
-        
-        // Update drilling path data if provided
-        if (data.drilling_path) {
-          updateData.drilling_path_data = data.drilling_path;
-        }
 
         await supabase
           .from('projects')
@@ -87,9 +104,14 @@ serve(async (req) => {
           .insert({
             project_id: projectId,
             role: 'assistant',
-            content: `📊 Données reçues (index ${currentIndex}): ${data.meters_drilled || 0}m forés, précision ${data.precision_improvement || 0}%, qualité ${data.image_quality || 0}%`,
-            image_url: data.image_url || null,
-            metadata: { source: 'external_api', index: currentIndex },
+            content: `📊 Itération ${data.iteration || currentIndex}: ${data.current_md || 0}m forés, lithologie: ${data.observed_lithology || 'inconnu'}, action: ${data.action?.action || 'N/A'}`,
+            metadata: { 
+              source: 'external_api', 
+              index: currentIndex,
+              iteration: data.iteration,
+              lithology: data.observed_lithology,
+              action: data.action
+            },
           });
 
         console.log(`Successfully processed index ${currentIndex}`);
