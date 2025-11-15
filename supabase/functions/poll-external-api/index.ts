@@ -66,6 +66,37 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         });
 
+        // Handle frame image if provided
+        let imageUrl = project.current_image_url;
+        if (data.frame_image_base64) {
+          try {
+            // Convert base64 to binary
+            const base64Data = data.frame_image_base64.replace(/^data:image\/\w+;base64,/, '');
+            const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            
+            // Upload to Supabase Storage
+            const fileName = `${projectId}/frame_${currentIndex}_${Date.now()}.png`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('project-images')
+              .upload(fileName, binaryData, {
+                contentType: 'image/png',
+                upsert: true
+              });
+
+            if (!uploadError && uploadData) {
+              const { data: urlData } = supabase.storage
+                .from('project-images')
+                .getPublicUrl(fileName);
+              imageUrl = urlData.publicUrl;
+              console.log(`Image uploaded successfully: ${imageUrl}`);
+            } else {
+              console.error('Error uploading image:', uploadError);
+            }
+          } catch (error) {
+            console.error('Error processing base64 image:', error);
+          }
+        }
+
         // Calculate new point based on action data
         const lastPoint = accumulatedPath.points.length > 0 
           ? accumulatedPath.points[accumulatedPath.points.length - 1]
@@ -93,6 +124,7 @@ serve(async (req) => {
           precision_improvement: project.precision_improvement,
           image_quality: project.image_quality,
           drilling_path_data: accumulatedPath,
+          current_image_url: imageUrl,
         };
 
         await supabase
