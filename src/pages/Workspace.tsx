@@ -376,6 +376,35 @@ const Workspace = () => {
     }
   };
 
+  const handleRestartDrilling = async () => {
+    if (project?.polling_active) {
+      toast.error("Cannot restart while drilling is active");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({
+          current_index: 0,
+          drilling_path_data: null,
+          meters_drilled: 0,
+        })
+        .eq("id", projectId);
+
+      if (error) throw error;
+
+      toast.success("Drilling reset! Ready to start from beginning.");
+      fetchProject();
+    } catch (error: any) {
+      console.error('Reset error:', error);
+      toast.error(error.message || "Failed to reset drilling");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleStartPolling = async () => {
     if (!project?.external_api_url) {
       toast.error("Please configure API URL first");
@@ -440,6 +469,14 @@ const Workspace = () => {
             disabled={isLoading}
           >
             {project?.external_api_url ? "API Configured ✓" : "Configure API"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestartDrilling}
+            disabled={isLoading || project?.polling_active}
+          >
+            Restart Drilling
           </Button>
           <Button
             variant="default"
