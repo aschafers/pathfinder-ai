@@ -99,7 +99,7 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
     <div className="h-full p-4 flex flex-col">
       <Card className="flex-1 border-border bg-card/30 backdrop-blur-sm overflow-hidden">
         <div className="h-full relative">
-          <div className="absolute top-4 left-4 z-10">
+          <div className="absolute top-4 right-4 z-10 bg-card/80 backdrop-blur-sm border border-border rounded-lg p-3">
             <h3 className="text-sm font-semibold text-primary mb-2">2D Cross-Section</h3>
             <div className="text-xs text-muted-foreground space-y-1">
               <div className="flex items-center gap-2">
