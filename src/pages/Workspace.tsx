@@ -597,7 +597,7 @@ const Workspace = () => {
                       className="w-full rounded-md mb-2 max-h-64 object-cover"
                     />
                   )}
-                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-foreground">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 </Card>
