@@ -1,0 +1,4 @@
+project_id = "jsyxrparkjbkcobeheqe"
+
+[functions.analyze-seismogram]
+verify_jwt = true
