@@ -39,7 +39,7 @@ const Workspace = () => {
   const [project, setProject] = useState<Project | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [apiUrl, setApiUrl] = useState("");
+  const [apiUrl, setApiUrl] = useState("https://8917d9e1ffac.ngrok-free.app");
   const [showApiConfig, setShowApiConfig] = useState(false);
 
   useEffect(() => {
@@ -101,6 +101,8 @@ const Workspace = () => {
   useEffect(() => {
     if (project?.external_api_url) {
       setApiUrl(project.external_api_url);
+    } else {
+      setApiUrl("https://8917d9e1ffac.ngrok-free.app");
     }
   }, [project]);
 
