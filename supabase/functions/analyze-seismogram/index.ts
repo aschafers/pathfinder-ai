@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId, message, history } = await req.json();
+    const { projectId, message, history, image_url } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -32,12 +32,15 @@ serve(async (req) => {
 5. Reference geo-engineering standards when relevant
 
 Key capabilities:
-- Detect geological layers, faults, and density variations
-- Recommend drilling angles and paths
+- Detect geological layers, faults, and density variations from seismogram images
+- Recommend drilling angles and paths based on visual analysis
 - Track iterative improvements as drilling progresses
 - Simulate scenarios and predict risks
 
-When analyzing images or data:
+When analyzing images:
+- Identify visible geological layers, boundaries, and discontinuities
+- Detect potential faults, fractures, or unstable zones
+- Estimate density variations from image patterns
 - Start with initial estimates (typically 40% quality for first meters)
 - Improve recommendations as drill advances and new images arrive
 - Provide clear metrics: current depth, precision improvement, image quality
@@ -49,13 +52,36 @@ Keep responses professional, concise, and actionable for field engineers.`
         role: msg.role,
         content: msg.content
       })),
-      {
-        role: 'user',
-        content: message
-      }
     ];
 
-    console.log('Calling Lovable AI with message:', message);
+    // Build user message with image if provided
+    let userMessage: any;
+    if (image_url) {
+      userMessage = {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: message
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: image_url
+            }
+          }
+        ]
+      };
+      console.log('Calling Lovable AI with message and image:', message, image_url);
+    } else {
+      userMessage = {
+        role: 'user',
+        content: message
+      };
+      console.log('Calling Lovable AI with message:', message);
+    }
+
+    messages.push(userMessage);
 
     // Call Lovable AI Gateway
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
