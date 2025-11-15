@@ -40,6 +40,10 @@ serve(async (req) => {
 
     // Perform polling iterations
     const results = [];
+    
+    // Initialize drilling path accumulator
+    const accumulatedPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
+    
     for (let i = 0; i < iterations; i++) {
       const currentIndex = project.current_index + i;
       
@@ -62,12 +66,9 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         });
 
-        // Get existing drilling path or initialize
-        const existingPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
-        
         // Calculate new point based on action data
-        const lastPoint = existingPath.points.length > 0 
-          ? existingPath.points[existingPath.points.length - 1]
+        const lastPoint = accumulatedPath.points.length > 0 
+          ? accumulatedPath.points[accumulatedPath.points.length - 1]
           : { x: 0, y: 0, z: 0 };
         
         // Convert inclination and azimuth to x, y, z coordinates
@@ -81,16 +82,17 @@ serve(async (req) => {
           z: lastPoint.z - stepMd * Math.cos(inclination)
         };
         
-        existingPath.points.push(newPoint);
-        existingPath.status = data.action?.action === 'drill' ? 'drilling' : 'stopped';
+        // Accumulate point in memory
+        accumulatedPath.points.push(newPoint);
+        accumulatedPath.status = data.action?.action === 'drill' ? 'drilling' : 'stopped';
 
-        // Update project with new data
+        // Update project with accumulated data
         const updateData: any = {
           current_index: currentIndex + 1,
           meters_drilled: data.current_md || project.meters_drilled,
           precision_improvement: project.precision_improvement,
           image_quality: project.image_quality,
-          drilling_path_data: existingPath,
+          drilling_path_data: accumulatedPath,
         };
 
         await supabase
