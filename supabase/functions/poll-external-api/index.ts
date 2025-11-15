@@ -63,15 +63,22 @@ serve(async (req) => {
         });
 
         // Update project with new data
+        const updateData: any = {
+          current_index: currentIndex + 1,
+          meters_drilled: data.meters_drilled || project.meters_drilled,
+          precision_improvement: data.precision_improvement || project.precision_improvement,
+          image_quality: data.image_quality || project.image_quality,
+          current_image_url: data.image_url || project.current_image_url,
+        };
+        
+        // Update drilling path data if provided
+        if (data.drilling_path) {
+          updateData.drilling_path_data = data.drilling_path;
+        }
+
         await supabase
           .from('projects')
-          .update({
-            current_index: currentIndex + 1,
-            meters_drilled: data.meters_drilled || project.meters_drilled,
-            precision_improvement: data.precision_improvement || project.precision_improvement,
-            image_quality: data.image_quality || project.image_quality,
-            current_image_url: data.image_url || project.current_image_url,
-          })
+          .update(updateData)
           .eq('id', projectId);
 
         // Create a chat message with the new data
