@@ -186,6 +186,28 @@ async function performPolling(supabase: any, project: any, iterations: number, p
         })
         .eq('id', projectId);
 
+      // Create chat message with drilling results
+      const messageContent = `**Drilling Update - Index ${currentIndex}**\n\n` +
+        `📊 **Metrics:**\n` +
+        `- Depth: ${metersDrilled}m\n` +
+        `- Lithology: ${newPoint.lithology}\n` +
+        `- Position: X=${newPoint.x.toFixed(2)}m, Y=${newPoint.y.toFixed(2)}m\n\n` +
+        (data.action ? `🎯 **Action Taken:**\n` +
+        `- Step MD: ${data.action.step_md}m\n` +
+        `- Inclination: ${data.action.inclination}°\n` +
+        `- Azimuth: ${data.action.azimuth}°\n\n` : '') +
+        (data.precision_improvement ? `✨ Precision: ${data.precision_improvement}%\n` : '') +
+        (data.image_quality ? `🖼️ Image Quality: ${data.image_quality}%` : '');
+
+      await supabase
+        .from('chat_messages')
+        .insert({
+          project_id: projectId,
+          role: 'assistant',
+          content: messageContent,
+          image_url: imageUrl
+        });
+
       console.log(`Successfully processed index ${currentIndex} - ${metersDrilled}m drilled`);
 
       // Wait 5 seconds between iterations (configurable)
