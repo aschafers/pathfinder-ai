@@ -45,6 +45,18 @@ serve(async (req) => {
     const accumulatedPath = project.drilling_path_data as any || { points: [], status: 'in_progress', obstacle_detected: false };
     
     for (let i = 0; i < iterations; i++) {
+      // Check if polling has been stopped by user
+      const { data: currentProject } = await supabase
+        .from('projects')
+        .select('polling_active')
+        .eq('id', projectId)
+        .single();
+      
+      if (!currentProject?.polling_active) {
+        console.log('Polling stopped by user');
+        break;
+      }
+
       const currentIndex = project.current_index + i;
       
       console.log(`Fetching data for index ${currentIndex}`);
