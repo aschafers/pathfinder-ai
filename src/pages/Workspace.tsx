@@ -435,7 +435,7 @@ const Workspace = () => {
       const { error } = await supabase.functions.invoke("poll-external-api", {
         body: {
           projectId,
-          iterations: 5,
+          iterations: 20,
         },
       });
 
