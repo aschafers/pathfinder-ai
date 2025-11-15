@@ -56,13 +56,17 @@ export type Database = {
         Row: {
           created_at: string
           current_image_url: string | null
+          current_index: number | null
           description: string | null
           drilling_path_data: Json | null
+          external_api_url: string | null
           id: string
           image_quality: number | null
           initial_image_url: string | null
           meters_drilled: number | null
           name: string
+          polling_active: boolean | null
+          polling_interval: number | null
           precision_improvement: number | null
           status: string
           updated_at: string
@@ -71,13 +75,17 @@ export type Database = {
         Insert: {
           created_at?: string
           current_image_url?: string | null
+          current_index?: number | null
           description?: string | null
           drilling_path_data?: Json | null
+          external_api_url?: string | null
           id?: string
           image_quality?: number | null
           initial_image_url?: string | null
           meters_drilled?: number | null
           name: string
+          polling_active?: boolean | null
+          polling_interval?: number | null
           precision_improvement?: number | null
           status?: string
           updated_at?: string
@@ -86,13 +94,17 @@ export type Database = {
         Update: {
           created_at?: string
           current_image_url?: string | null
+          current_index?: number | null
           description?: string | null
           drilling_path_data?: Json | null
+          external_api_url?: string | null
           id?: string
           image_quality?: number | null
           initial_image_url?: string | null
           meters_drilled?: number | null
           name?: string
+          polling_active?: boolean | null
+          polling_interval?: number | null
           precision_improvement?: number | null
           status?: string
           updated_at?: string

@@ -23,6 +23,10 @@ interface Project {
   image_quality: number;
   initial_image_url?: string;
   current_image_url?: string;
+  external_api_url?: string;
+  current_index: number;
+  polling_active: boolean;
+  polling_interval: number;
 }
 
 const Workspace = () => {
@@ -34,15 +38,70 @@ const Workspace = () => {
   const [project, setProject] = useState<Project | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [apiUrl, setApiUrl] = useState("");
+  const [showApiConfig, setShowApiConfig] = useState(false);
 
   useEffect(() => {
     fetchProject();
     fetchMessages();
+    
+    // Subscribe to project updates
+    const channel = supabase
+      .channel(`project-${projectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects',
+          filter: `id=eq.${projectId}`,
+        },
+        (payload) => {
+          console.log('Project updated:', payload);
+          setProject(payload.new as Project);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new messages
+    const messagesChannel = supabase
+      .channel(`messages-${projectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `project_id=eq.${projectId}`,
+        },
+        (payload) => {
+          console.log('New message:', payload);
+          const newMsg = payload.new as any;
+          setMessages((prev) => [...prev, {
+            id: newMsg.id,
+            role: newMsg.role,
+            content: newMsg.content,
+            image_url: newMsg.image_url || undefined,
+          }]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+    };
   }, [projectId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (project?.external_api_url) {
+      setApiUrl(project.external_api_url);
+    }
+  }, [project]);
 
   const fetchProject = async () => {
     try {
@@ -295,6 +354,60 @@ const Workspace = () => {
     }
   };
 
+  const handleSaveApiUrl = async () => {
+    if (!apiUrl.trim()) {
+      toast.error("Please enter a valid API URL");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ external_api_url: apiUrl })
+        .eq("id", projectId);
+
+      if (error) throw error;
+
+      toast.success("API URL configured successfully!");
+      setShowApiConfig(false);
+      fetchProject();
+    } catch (error) {
+      toast.error("Failed to save API URL");
+    }
+  };
+
+  const handleStartPolling = async () => {
+    if (!project?.external_api_url) {
+      toast.error("Please configure API URL first");
+      setShowApiConfig(true);
+      return;
+    }
+
+    if (project.polling_active) {
+      toast.error("Polling is already active");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("poll-external-api", {
+        body: {
+          projectId,
+          iterations: 5,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Polling started! Check messages for updates.");
+    } catch (error: any) {
+      console.error('Polling error:', error);
+      toast.error(error.message || "Failed to start polling");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm px-4 py-3 flex items-center justify-between">
@@ -314,11 +427,67 @@ const Workspace = () => {
                 <span className="text-success">{project.meters_drilled}m drilled</span>
                 <span className="text-primary">+{project.precision_improvement}% precision</span>
                 <span>{project.image_quality}% quality</span>
+                <span className="text-muted-foreground">Index: {project.current_index}</span>
               </div>
             )}
           </div>
         </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowApiConfig(!showApiConfig)}
+            disabled={isLoading}
+          >
+            {project?.external_api_url ? "API Configured ✓" : "Configure API"}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleStartPolling}
+            disabled={isLoading || project?.polling_active || !project?.external_api_url}
+          >
+            {project?.polling_active ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Polling...
+              </>
+            ) : (
+              "Start Polling"
+            )}
+          </Button>
+        </div>
       </header>
+
+      {/* API Configuration Card */}
+      {showApiConfig && (
+        <div className="px-4 py-3 bg-muted/50 border-b border-border">
+          <Card className="p-4">
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">External API URL</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  The API will be called with ?index=N parameter (e.g., {apiUrl || "https://api.example.com/data"}?index=0)
+                </p>
+                <Input
+                  placeholder="https://api.example.com/drilling-data"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  className="mb-2"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveApiUrl} size="sm">
+                  Save API URL
+                </Button>
+                <Button variant="ghost" onClick={() => setShowApiConfig(false)} size="sm">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Chat Section */}
@@ -344,6 +513,13 @@ const Workspace = () => {
                       : "bg-card/50 border-border"
                   }`}
                 >
+                  {message.image_url && (
+                    <img 
+                      src={message.image_url} 
+                      alt="Seismogram" 
+                      className="w-full rounded-md mb-2 max-h-64 object-cover"
+                    />
+                  )}
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </Card>
               </div>
