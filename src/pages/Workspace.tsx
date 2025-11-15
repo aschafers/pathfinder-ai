@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Send, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import DrillingCanvas from "@/components/DrillingCanvas";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -596,7 +597,9 @@ const Workspace = () => {
                       className="w-full rounded-md mb-2 max-h-64 object-cover"
                     />
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
                 </Card>
               </div>
             ))}
