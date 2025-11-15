@@ -4,8 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Plus, LogOut, Activity } from "lucide-react";
+import { Plus, LogOut, Activity, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Project {
   id: string;
@@ -22,6 +32,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -76,6 +87,26 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", projectToDelete);
+
+      if (error) throw error;
+
+      toast.success("Project deleted successfully");
+      setProjects(projects.filter(p => p.id !== projectToDelete));
+      setProjectToDelete(null);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error("Failed to delete project");
+    }
   };
 
   return (
@@ -140,41 +171,81 @@ const Dashboard = () => {
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="border-border bg-card/50 backdrop-blur-sm hover:border-primary transition-colors cursor-pointer group"
-                onClick={() => navigate(`/workspace/${project.id}`)}
+                className="border-border bg-card/50 backdrop-blur-sm hover:border-primary transition-colors group relative"
               >
-                <CardHeader>
-                  <CardTitle className="group-hover:text-primary transition-colors">
-                    {project.name}
-                  </CardTitle>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/workspace/${project.id}`)}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="group-hover:text-primary transition-colors">
+                          {project.name}
+                        </CardTitle>
+                        <CardDescription>{project.description}</CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectToDelete(project.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="text-success font-mono">
+                          {project.meters_drilled}m drilled
+                        </span>
+                      </div>
+                      <Progress value={project.image_quality} className="h-2" />
+                    </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="text-success font-mono">
-                        {project.meters_drilled}m drilled
+                      <span className="text-muted-foreground">Precision</span>
+                      <span className="text-primary font-mono">
+                        +{project.precision_improvement.toFixed(0)}%
                       </span>
                     </div>
-                    <Progress value={project.image_quality} className="h-2" />
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Precision</span>
-                    <span className="text-primary font-mono">
-                      +{project.precision_improvement.toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Image Quality</span>
-                    <span className="font-mono">{project.image_quality}%</span>
-                  </div>
-                </CardContent>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Image Quality</span>
+                      <span className="font-mono">{project.image_quality}%</span>
+                    </div>
+                  </CardContent>
+                </div>
               </Card>
             ))}
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={projectToDelete !== null} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le projet et toutes ses données (messages, images) seront définitivement supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
