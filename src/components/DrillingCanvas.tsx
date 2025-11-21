@@ -46,9 +46,8 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
         .eq('id', projectId)
         .single();
       
-      if (data?.current_image_url) {
-        setNextImageUrl(data.current_image_url);
-      }
+      // Always update nextImageUrl, even if it's null (for clearing)
+      setNextImageUrl(data?.current_image_url || null);
     };
 
     fetchProject();
@@ -66,8 +65,10 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
         },
         (payload) => {
           console.log('Project updated:', payload);
-          if (payload.new.current_image_url && payload.new.current_image_url !== nextImageUrl) {
-            setNextImageUrl(payload.new.current_image_url);
+          // Always update, even if null (for clearing)
+          const newImageUrl = payload.new.current_image_url || null;
+          if (newImageUrl !== nextImageUrl) {
+            setNextImageUrl(newImageUrl);
           }
         }
       )
