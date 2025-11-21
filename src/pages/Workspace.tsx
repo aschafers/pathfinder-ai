@@ -544,16 +544,19 @@ const Workspace = () => {
           <Card className="p-4">
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">External API URL</label>
+                <label className="text-sm font-medium mb-1 block">External API URL (domain only)</label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  The API will be called with ?index=N parameter (e.g., {apiUrl || "https://api.example.com/data"}?index=0)
+                  Enter the base domain (e.g., https://example.com)
                 </p>
                 <Input
-                  placeholder="https://api.example.com/drilling-data"
+                  placeholder="https://8917d9e1ffac.ngrok-free.app"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
                   className="mb-2"
                 />
+                <p className="text-xs font-mono text-muted-foreground mt-1">
+                  GET /drilling-data?index=N
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSaveApiUrl} size="sm">
