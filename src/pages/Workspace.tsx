@@ -90,12 +90,19 @@ const Workspace = () => {
         (payload) => {
           console.log('New message:', payload);
           const newMsg = payload.new as any;
-          setMessages((prev) => [...prev, {
-            id: newMsg.id,
-            role: newMsg.role,
-            content: newMsg.content,
-            image_url: newMsg.image_url || undefined,
-          }]);
+          
+          // Avoid duplicates - only add if message doesn't exist
+          setMessages((prev) => {
+            const exists = prev.some(m => m.id === newMsg.id);
+            if (exists) return prev;
+            
+            return [...prev, {
+              id: newMsg.id,
+              role: newMsg.role,
+              content: newMsg.content,
+              image_url: newMsg.image_url || undefined,
+            }];
+          });
         }
       )
       .subscribe();
@@ -177,14 +184,14 @@ const Workspace = () => {
 
       if (userError) throw userError;
       
-      // Don't add manually - let realtime subscription handle it
-      // const typedUserMsg: Message = {
-      //   id: userMsg.id,
-      //   role: userMsg.role as "user",
-      //   content: userMsg.content,
-      //   image_url: userMsg.image_url || undefined,
-      // };
-      // setMessages((prev) => [...prev, typedUserMsg]);
+      // Add user message immediately for feedback
+      const typedUserMsg: Message = {
+        id: userMsg.id,
+        role: userMsg.role as "user",
+        content: userMsg.content,
+        image_url: userMsg.image_url || undefined,
+      };
+      setMessages((prev) => [...prev, typedUserMsg]);
 
       // Call AI edge function
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke(
@@ -300,14 +307,14 @@ const Workspace = () => {
 
       if (userError) throw userError;
       
-      // Don't add manually - let realtime subscription handle it
-      // const typedUserMsg: Message = {
-      //   id: userMsg.id,
-      //   role: userMsg.role as "user",
-      //   content: userMsg.content,
-      //   image_url: userMsg.image_url || undefined,
-      // };
-      // setMessages((prev) => [...prev, typedUserMsg]);
+      // Add user message immediately for feedback
+      const typedUserMsg: Message = {
+        id: userMsg.id,
+        role: userMsg.role as "user",
+        content: userMsg.content,
+        image_url: userMsg.image_url || undefined,
+      };
+      setMessages((prev) => [...prev, typedUserMsg]);
 
       // Update project with image URL
       await supabase
