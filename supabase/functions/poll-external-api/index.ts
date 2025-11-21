@@ -90,8 +90,8 @@ async function performPolling(supabase: any, project: any, iterations: number, p
     console.log(`Fetching data for index ${currentIndex}`);
     
     try {
-      // Call external API with index parameter
-      const apiUrl = `${project.external_api_url}?index=${currentIndex}`;
+      // Call external API with index parameter and hardcoded path
+      const apiUrl = `${project.external_api_url}/drilling-data?index=${currentIndex}`;
       const response = await fetch(apiUrl);
       
       if (!response.ok) {
