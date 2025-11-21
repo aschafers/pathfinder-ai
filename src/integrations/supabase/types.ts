@@ -63,6 +63,7 @@ export type Database = {
           id: string
           image_quality: number | null
           initial_image_url: string | null
+          llm_system_prompt: string | null
           meters_drilled: number | null
           name: string
           polling_active: boolean | null
@@ -82,6 +83,7 @@ export type Database = {
           id?: string
           image_quality?: number | null
           initial_image_url?: string | null
+          llm_system_prompt?: string | null
           meters_drilled?: number | null
           name: string
           polling_active?: boolean | null
@@ -101,6 +103,7 @@ export type Database = {
           id?: string
           image_quality?: number | null
           initial_image_url?: string | null
+          llm_system_prompt?: string | null
           meters_drilled?: number | null
           name?: string
           polling_active?: boolean | null

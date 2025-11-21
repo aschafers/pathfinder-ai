@@ -8,6 +8,7 @@ import { ArrowLeft, Send, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import DrillingCanvas from "@/components/DrillingCanvas";
 import DebugPanel from "@/components/DebugPanel";
+import LlmConfigCard from "@/components/LlmConfigCard";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -36,6 +37,7 @@ interface Project {
   initial_image_url?: string;
   current_image_url?: string;
   external_api_url?: string;
+  llm_system_prompt?: string;
   current_index: number;
   polling_active: boolean;
   polling_interval: number;
@@ -54,10 +56,41 @@ const Workspace = () => {
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+  const [showLlmConfig, setShowLlmConfig] = useState(false);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string>("");
+
+  // Default system prompt
+  const defaultSystemPrompt = `You are an AI assistant specialized in seismographic analysis and drilling guidance for geo-engineering projects. Your role is to:
+
+1. Analyze seismographic images and geological data
+2. Provide optimal drilling paths that avoid unstable zones
+3. Calculate and improve precision as more data is gathered
+4. Explain decisions in technical but accessible language
+5. Reference geo-engineering standards when relevant
+
+Key capabilities:
+- Detect geological layers, faults, and density variations from seismogram images
+- Recommend drilling angles and paths based on visual analysis
+- Track iterative improvements as drilling progresses
+- Simulate scenarios and predict risks
+
+When analyzing images:
+- Identify visible geological layers, boundaries, and discontinuities
+- Detect potential faults, fractures, or unstable zones
+- Estimate density variations from image patterns
+- Start with initial estimates (typically 40% quality for first meters)
+- Improve recommendations as drill advances and new images arrive
+- Provide clear metrics: current depth, precision improvement, image quality
+- Alert to high-risk zones immediately
+
+Keep responses professional, concise, and actionable for field engineers.`;
 
   useEffect(() => {
     fetchProject();
     fetchMessages();
+    
+    // Set default system prompt immediately
+    setSystemPrompt(defaultSystemPrompt);
     
     // Subscribe to project updates
     const channel = supabase
@@ -124,7 +157,15 @@ const Workspace = () => {
     } else {
       setApiUrl("https://8917d9e1ffac.ngrok-free.app");
     }
-  }, [project]);
+    
+    // Load custom system prompt if available
+    if (project?.llm_system_prompt) {
+      setCustomSystemPrompt(project.llm_system_prompt);
+      setSystemPrompt(project.llm_system_prompt);
+    } else {
+      setSystemPrompt(defaultSystemPrompt);
+    }
+  }, [project, defaultSystemPrompt]);
 
   const fetchProject = async () => {
     try {
@@ -202,6 +243,7 @@ const Workspace = () => {
             projectId,
             message: userMessage,
             history: messages,
+            systemPrompt: customSystemPrompt || defaultSystemPrompt,
           },
         }
       );
@@ -340,6 +382,7 @@ const Workspace = () => {
             message: messageText,
             image_url: publicUrl,
             history: messages,
+            systemPrompt: customSystemPrompt || defaultSystemPrompt,
           },
         }
       );
@@ -518,6 +561,33 @@ const Workspace = () => {
     }
   };
 
+  const handleSaveLlmConfig = async () => {
+    if (!customSystemPrompt.trim()) {
+      toast.error("System prompt cannot be empty");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ llm_system_prompt: customSystemPrompt })
+        .eq("id", projectId);
+
+      if (error) throw error;
+
+      setSystemPrompt(customSystemPrompt);
+      toast.success("LLM configuration saved successfully!");
+      setShowLlmConfig(false);
+      fetchProject();
+    } catch (error) {
+      toast.error("Failed to save LLM configuration");
+    }
+  };
+
+  const handleResetSystemPrompt = () => {
+    setCustomSystemPrompt(defaultSystemPrompt);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm px-4 py-3 flex items-center justify-between">
@@ -543,6 +613,14 @@ const Workspace = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowLlmConfig(!showLlmConfig)}
+            disabled={isLoading}
+          >
+            {customSystemPrompt ? "LLM Configured ✓" : "Configure LLM"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -582,6 +660,19 @@ const Workspace = () => {
           )}
         </div>
       </header>
+
+      {/* LLM Configuration Card */}
+      {showLlmConfig && (
+        <div className="px-4 py-3 bg-muted/50 border-b border-border">
+          <LlmConfigCard
+            systemPrompt={customSystemPrompt || defaultSystemPrompt}
+            onSystemPromptChange={setCustomSystemPrompt}
+            onSave={handleSaveLlmConfig}
+            onCancel={() => setShowLlmConfig(false)}
+            onReset={handleResetSystemPrompt}
+          />
+        </div>
+      )}
 
       {/* API Configuration Card */}
       {showApiConfig && (
