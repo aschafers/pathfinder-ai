@@ -512,7 +512,7 @@ const Workspace = () => {
             onClick={handleRestartDrilling}
             disabled={isLoading || project?.polling_active}
           >
-            Restart Drilling
+            Clear
           </Button>
           {project?.polling_active ? (
             <Button
