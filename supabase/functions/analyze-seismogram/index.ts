@@ -135,7 +135,7 @@ Keep responses professional, concise, and actionable for field engineers.`
       provider: 'Lovable AI',
       model: 'google/gemini-2.5-flash',
       prompt: messages[messages.length - 1].content,
-      systemPrompt: messages[0].content,
+      context: messages.slice(1, -1), // All messages except system and current user message
       response: aiResponse,
       tokensUsed: data.usage?.total_tokens || 'N/A',
     };
@@ -145,6 +145,7 @@ Keep responses professional, concise, and actionable for field engineers.`
         response: aiResponse,
         metrics: metrics,
         debug: debugInfo,
+        systemPrompt: messages[0].content, // Send system prompt separately
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

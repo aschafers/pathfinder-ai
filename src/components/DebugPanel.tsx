@@ -9,18 +9,20 @@ interface DebugEntry {
   provider: string;
   model: string;
   prompt: string | any;
-  systemPrompt: string;
+  context: any[];
   response: string;
   tokensUsed: string | number;
 }
 
 interface DebugPanelProps {
   debugEntries: DebugEntry[];
+  systemPrompt?: string;
 }
 
-const DebugPanel = ({ debugEntries }: DebugPanelProps) => {
+const DebugPanel = ({ debugEntries, systemPrompt }: DebugPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
+  const [showSystemPrompt, setShowSystemPrompt] = useState(true);
 
   const formatPrompt = (prompt: any) => {
     if (typeof prompt === 'string') return prompt;
@@ -69,7 +71,38 @@ const DebugPanel = ({ debugEntries }: DebugPanelProps) => {
       </div>
 
       <ScrollArea className="flex-1 p-3">
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {/* System Prompt - Displayed once at the top */}
+          {systemPrompt && showSystemPrompt && (
+            <Card className="p-3 bg-primary/10 border-primary">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-sm text-primary">System Prompt</h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSystemPrompt(false)}
+                  className="h-6 px-2 text-xs"
+                >
+                  Masquer
+                </Button>
+              </div>
+              <pre className="text-xs bg-background p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto">
+                {systemPrompt}
+              </pre>
+            </Card>
+          )}
+
+          {!showSystemPrompt && systemPrompt && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSystemPrompt(true)}
+              className="w-full text-xs"
+            >
+              Afficher System Prompt
+            </Button>
+          )}
+
           {debugEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               Aucune requête LLM pour le moment
@@ -110,12 +143,28 @@ const DebugPanel = ({ debugEntries }: DebugPanelProps) => {
 
                 {expandedEntry === idx && (
                   <div className="mt-3 space-y-3 text-xs">
-                    <div>
-                      <div className="font-semibold mb-1 text-primary">System Prompt:</div>
-                      <pre className="bg-background p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">
-                        {entry.systemPrompt.substring(0, 200)}...
-                      </pre>
-                    </div>
+                    {entry.context && entry.context.length > 0 && (
+                      <div>
+                        <div className="font-semibold mb-1 text-primary">
+                          Context ({entry.context.length} messages):
+                        </div>
+                        <div className="bg-background p-2 rounded space-y-2 max-h-60 overflow-y-auto">
+                          {entry.context.map((msg: any, msgIdx: number) => (
+                            <div key={msgIdx} className="border-l-2 border-muted pl-2">
+                              <div className="font-semibold text-xs mb-1">
+                                {msg.role === "user" ? "👤 User" : "🤖 Assistant"}
+                              </div>
+                              <pre className="text-xs whitespace-pre-wrap">
+                                {typeof msg.content === "string" 
+                                  ? msg.content.substring(0, 150) + (msg.content.length > 150 ? "..." : "")
+                                  : JSON.stringify(msg.content).substring(0, 150) + "..."
+                                }
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <div className="font-semibold mb-1 text-primary">User Prompt:</div>
