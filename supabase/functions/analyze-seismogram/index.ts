@@ -12,18 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId, message, history, image_url } = await req.json();
+    const { projectId, message, history, image_url, systemPrompt: customSystemPrompt } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Build conversation history
-    const messages = [
-      {
-        role: 'system',
-        content: `You are an AI assistant specialized in seismographic analysis and drilling guidance for geo-engineering projects. Your role is to:
+    // Use custom system prompt if provided, otherwise use default
+    const systemPromptText = customSystemPrompt || `You are an AI assistant specialized in seismographic analysis and drilling guidance for geo-engineering projects. Your role is to:
 
 1. Analyze seismographic images and geological data
 2. Provide optimal drilling paths that avoid unstable zones
@@ -46,7 +43,13 @@ When analyzing images:
 - Provide clear metrics: current depth, precision improvement, image quality
 - Alert to high-risk zones immediately
 
-Keep responses professional, concise, and actionable for field engineers.`
+Keep responses professional, concise, and actionable for field engineers.`;
+
+    // Build conversation history
+    const messages = [
+      {
+        role: 'system',
+        content: systemPromptText
       },
       ...history.map((msg: any) => ({
         role: msg.role,
