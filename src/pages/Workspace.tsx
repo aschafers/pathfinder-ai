@@ -532,7 +532,7 @@ const Workspace = () => {
               onClick={handleStartPolling}
               disabled={isLoading || !project?.external_api_url}
             >
-              Start Drilling
+              Start Drilling Simulation
             </Button>
           )}
         </div>
