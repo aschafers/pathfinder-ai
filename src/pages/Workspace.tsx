@@ -165,13 +165,14 @@ const Workspace = () => {
 
       if (userError) throw userError;
       
-      const typedUserMsg: Message = {
-        id: userMsg.id,
-        role: userMsg.role as "user",
-        content: userMsg.content,
-        image_url: userMsg.image_url || undefined,
-      };
-      setMessages((prev) => [...prev, typedUserMsg]);
+      // Don't add manually - let realtime subscription handle it
+      // const typedUserMsg: Message = {
+      //   id: userMsg.id,
+      //   role: userMsg.role as "user",
+      //   content: userMsg.content,
+      //   image_url: userMsg.image_url || undefined,
+      // };
+      // setMessages((prev) => [...prev, typedUserMsg]);
 
       // Call AI edge function
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke(
@@ -200,13 +201,14 @@ const Workspace = () => {
 
       if (aiMsgError) throw aiMsgError;
       
-      const typedAiMsg: Message = {
-        id: aiMsg.id,
-        role: aiMsg.role as "assistant",
-        content: aiMsg.content,
-        image_url: aiMsg.image_url || undefined,
-      };
-      setMessages((prev) => [...prev, typedAiMsg]);
+      // Don't add manually - let realtime subscription handle it
+      // const typedAiMsg: Message = {
+      //   id: aiMsg.id,
+      //   role: aiMsg.role as "assistant",
+      //   content: aiMsg.content,
+      //   image_url: aiMsg.image_url || undefined,
+      // };
+      // setMessages((prev) => [...prev, typedAiMsg]);
 
       // Update project metrics if provided
       if (aiResponse.metrics) {
@@ -281,13 +283,14 @@ const Workspace = () => {
 
       if (userError) throw userError;
       
-      const typedUserMsg: Message = {
-        id: userMsg.id,
-        role: userMsg.role as "user",
-        content: userMsg.content,
-        image_url: userMsg.image_url || undefined,
-      };
-      setMessages((prev) => [...prev, typedUserMsg]);
+      // Don't add manually - let realtime subscription handle it
+      // const typedUserMsg: Message = {
+      //   id: userMsg.id,
+      //   role: userMsg.role as "user",
+      //   content: userMsg.content,
+      //   image_url: userMsg.image_url || undefined,
+      // };
+      // setMessages((prev) => [...prev, typedUserMsg]);
 
       // Update project with image URL
       await supabase
@@ -326,13 +329,14 @@ const Workspace = () => {
 
       if (aiMsgError) throw aiMsgError;
       
-      const typedAiMsg: Message = {
-        id: aiMsg.id,
-        role: aiMsg.role as "assistant",
-        content: aiMsg.content,
-        image_url: aiMsg.image_url || undefined,
-      };
-      setMessages((prev) => [...prev, typedAiMsg]);
+      // Don't add manually - let realtime subscription handle it
+      // const typedAiMsg: Message = {
+      //   id: aiMsg.id,
+      //   role: aiMsg.role as "assistant",
+      //   content: aiMsg.content,
+      //   image_url: aiMsg.image_url || undefined,
+      // };
+      // setMessages((prev) => [...prev, typedAiMsg]);
 
       // Update metrics
       if (aiResponse.metrics) {
