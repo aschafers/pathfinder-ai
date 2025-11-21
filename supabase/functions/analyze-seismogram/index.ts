@@ -129,10 +129,22 @@ Keep responses professional, concise, and actionable for field engineers.`
       image_quality: Math.min(95, 40 + (history.length + 1) * 3),
     };
 
+    // Prepare debug info
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      provider: 'Lovable AI',
+      model: 'google/gemini-2.5-flash',
+      prompt: messages[messages.length - 1].content,
+      systemPrompt: messages[0].content,
+      response: aiResponse,
+      tokensUsed: data.usage?.total_tokens || 'N/A',
+    };
+
     return new Response(
       JSON.stringify({
         response: aiResponse,
         metrics: metrics,
+        debug: debugInfo,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
