@@ -106,34 +106,43 @@ async function performPolling(supabase: any, project: any, iterations: number, p
         timestamp: new Date().toISOString(),
       });
 
-      // Handle frame image if provided
+      // Handle frame image if provided via frame_path
       let imageUrl = project.current_image_url;
-      if (data.frame_image_base64) {
+      if (data.frame_path) {
         try {
-          // Convert base64 to binary
-          const base64Data = data.frame_image_base64.replace(/^data:image\/\w+;base64,/, '');
-          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          // Fetch image from external API
+          const imageApiUrl = `${project.external_api_url}/${data.frame_path}`;
+          console.log(`Fetching image from: ${imageApiUrl}`);
           
-          // Upload to Supabase Storage
-          const fileName = `${projectId}/frame_${currentIndex}_${Date.now()}.png`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('project-images')
-            .upload(fileName, binaryData, {
-              contentType: 'image/png',
-              upsert: true
-            });
-
-          if (!uploadError && uploadData) {
-            const { data: urlData } = supabase.storage
-              .from('project-images')
-              .getPublicUrl(fileName);
-            imageUrl = urlData.publicUrl;
-            console.log(`Image uploaded successfully: ${imageUrl}`);
+          const imageResponse = await fetch(imageApiUrl);
+          if (!imageResponse.ok) {
+            console.error(`Failed to fetch image: ${imageResponse.status}`);
           } else {
-            console.error('Error uploading image:', uploadError);
+            // Get image as array buffer
+            const imageBuffer = await imageResponse.arrayBuffer();
+            const imageData = new Uint8Array(imageBuffer);
+            
+            // Upload to Supabase Storage
+            const fileName = `${projectId}/frame_${currentIndex}_${Date.now()}.png`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('project-images')
+              .upload(fileName, imageData, {
+                contentType: 'image/png',
+                upsert: true
+              });
+
+            if (!uploadError && uploadData) {
+              const { data: urlData } = supabase.storage
+                .from('project-images')
+                .getPublicUrl(fileName);
+              imageUrl = urlData.publicUrl;
+              console.log(`Image uploaded successfully: ${imageUrl}`);
+            } else {
+              console.error('Error uploading image:', uploadError);
+            }
           }
         } catch (error) {
-          console.error('Error processing base64 image:', error);
+          console.error('Error fetching/uploading image:', error);
         }
       }
 
