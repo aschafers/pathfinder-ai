@@ -214,7 +214,7 @@ async function performPolling(supabase: any, project: any, iterations: number, p
           project_id: projectId,
           role: 'assistant',
           content: messageContent,
-          image_url: imageUrl
+          // Don't include image_url - images are only shown in the canvas panel
         });
 
       console.log(`Successfully processed index ${currentIndex} - ${metersDrilled}m drilled`);
