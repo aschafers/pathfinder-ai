@@ -22,7 +22,7 @@ interface DebugEntry {
   provider: string;
   model: string;
   prompt: string | any;
-  systemPrompt: string;
+  context: any[];
   response: string;
   tokensUsed: string | number;
 }
@@ -53,6 +53,7 @@ const Workspace = () => {
   const [apiUrl, setApiUrl] = useState("https://8917d9e1ffac.ngrok-free.app");
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
+  const [systemPrompt, setSystemPrompt] = useState<string>("");
 
   useEffect(() => {
     fetchProject();
@@ -211,6 +212,11 @@ const Workspace = () => {
       if (aiResponse.debug) {
         setDebugEntries(prev => [...prev, aiResponse.debug]);
       }
+      
+      // Store system prompt (only first time)
+      if (aiResponse.systemPrompt && !systemPrompt) {
+        setSystemPrompt(aiResponse.systemPrompt);
+      }
 
       // Save AI response
       const { data: aiMsg, error: aiMsgError } = await supabase
@@ -343,6 +349,11 @@ const Workspace = () => {
       // Store debug info if available
       if (aiResponse.debug) {
         setDebugEntries(prev => [...prev, aiResponse.debug]);
+      }
+      
+      // Store system prompt (only first time)
+      if (aiResponse.systemPrompt && !systemPrompt) {
+        setSystemPrompt(aiResponse.systemPrompt);
       }
 
       // Save AI response
@@ -695,7 +706,7 @@ const Workspace = () => {
       </div>
 
       {/* Debug Panel */}
-      <DebugPanel debugEntries={debugEntries} />
+      <DebugPanel debugEntries={debugEntries} systemPrompt={systemPrompt} />
     </div>
   );
 };
