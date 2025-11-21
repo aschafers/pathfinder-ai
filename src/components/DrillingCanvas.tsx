@@ -14,7 +14,14 @@ const DrillingCanvas = ({ projectId }: DrillingCanvasProps) => {
 
   // Preload image before displaying
   useEffect(() => {
-    if (!nextImageUrl || nextImageUrl === imageUrl) return;
+    // Handle clearing the image when nextImageUrl is null
+    if (nextImageUrl === null) {
+      setImageUrl(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (nextImageUrl === imageUrl) return;
 
     setIsLoading(true);
     const img = new Image();
