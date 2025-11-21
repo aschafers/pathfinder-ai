@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Send, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import DrillingCanvas from "@/components/DrillingCanvas";
+import DebugPanel from "@/components/DebugPanel";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -14,6 +15,16 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   image_url?: string;
+}
+
+interface DebugEntry {
+  timestamp: string;
+  provider: string;
+  model: string;
+  prompt: string | any;
+  systemPrompt: string;
+  response: string;
+  tokensUsed: string | number;
 }
 
 interface Project {
@@ -41,6 +52,7 @@ const Workspace = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [apiUrl, setApiUrl] = useState("https://8917d9e1ffac.ngrok-free.app");
   const [showApiConfig, setShowApiConfig] = useState(false);
+  const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
 
   useEffect(() => {
     fetchProject();
@@ -188,6 +200,11 @@ const Workspace = () => {
 
       if (aiError) throw aiError;
 
+      // Store debug info if available
+      if (aiResponse.debug) {
+        setDebugEntries(prev => [...prev, aiResponse.debug]);
+      }
+
       // Save AI response
       const { data: aiMsg, error: aiMsgError } = await supabase
         .from("chat_messages")
@@ -316,6 +333,11 @@ const Workspace = () => {
 
       if (aiError) throw aiError;
 
+      // Store debug info if available
+      if (aiResponse.debug) {
+        setDebugEntries(prev => [...prev, aiResponse.debug]);
+      }
+
       // Save AI response
       const { data: aiMsg, error: aiMsgError } = await supabase
         .from("chat_messages")
@@ -416,6 +438,7 @@ const Workspace = () => {
 
       toast.success("Drilling reset! Ready to start from beginning.");
       setMessages([]);
+      setDebugEntries([]);
       fetchProject();
     } catch (error: any) {
       console.error('Reset error:', error);
@@ -663,6 +686,9 @@ const Workspace = () => {
           <DrillingCanvas projectId={projectId || ""} />
         </div>
       </div>
+
+      {/* Debug Panel */}
+      <DebugPanel debugEntries={debugEntries} />
     </div>
   );
 };
